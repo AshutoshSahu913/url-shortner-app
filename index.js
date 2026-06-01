@@ -1,6 +1,11 @@
 import express from "express";
-import 'dotenv/config';
+import "dotenv/config";
+import authRoutes from "./routes/auth.routes.js";
 import userRoutes from "./routes/user.routes.js";
+import {
+  authMiddleware,
+  adminMiddleware,
+} from "./middlewares/auth.middleware.js";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -8,8 +13,9 @@ const PORT = process.env.PORT || 3000;
 // Start the server
 app.use(express.json());
 
-//user routes
-app.use("/api/users", userRoutes);
+//auth routes
+app.use("/api/auth", authRoutes);
+app.use("/api/users", authMiddleware, userRoutes);
 
 app.get("/", (req, res) => {
   res.send("Hello World");
@@ -18,7 +24,3 @@ app.get("/", (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server is running on port http://localhost:${PORT}`);
 });
-
-
-
-
