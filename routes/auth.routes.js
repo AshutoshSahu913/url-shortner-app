@@ -3,8 +3,12 @@ import { db } from "../db/index.js";
 import { eq } from "drizzle-orm";
 import { usersTable } from "../models/users.model.js";
 import { hashPasswordWithSalt } from "../utils/hash.js";
+import { getUserByEmail, createUser } from "../services/user.services.js";
 import jwt from "jsonwebtoken";
-import { registerSchema } from "../validation/request.validation.js";
+import {
+  registerSchema,
+  loginSchema,
+} from "../validation/request.validation.js";
 
 const router = express.Router();
 
@@ -22,7 +26,7 @@ router.post("/register", async (req, res) => {
     console.log("Registering user with data:", req.body);
     const validationResult = await registerSchema.safeParseAsync(req.body);
 
-    if (!validationResult.success) {
+    if (validationResult.error) {
       return res.status(400).json({
         errors: validationResult.error.issues.map((issue) => ({
           field: issue.path[0],
@@ -32,34 +36,26 @@ router.post("/register", async (req, res) => {
     }
 
     const { firstname, lastname, email, password } = validationResult.data;
+      
 
     //check if user already exists
-    const existingUsers = await db
-      .select({
-        id: usersTable.id,
-      })
-      .from(usersTable)
-      .where(eq(usersTable.email, email))
-      .limit(1);
-
-    if (existingUsers.length > 0)
+    const existingUser = await getUserByEmail(email);
+    if (existingUser) {
       return res.status(400).json({ error: "User already exists" });
+    }
 
     //hash password
-    const { salt, hashPassword } = hashPasswordWithSalt(password);
+    const { salt, password: hashedPassword } = hashPasswordWithSalt(password);
 
-    const [user] = await db
-      .insert(usersTable)
-      .values({
-        firstname: firstname,
-        lastname: lastname,
-        email,
-        password: hashPassword,
-        salt,
-      })
-      .returning({
-        userId: usersTable.id,
-      });
+    const user = await createUser(
+      firstname,
+      lastname,
+      email,
+      hashedPassword,
+      salt,
+    );
+
+    console.log("User registered successfully:", user);
 
     res.status(201).json({
       message: "User registered successfully",
@@ -76,39 +72,46 @@ router.post("/register", async (req, res) => {
 //login route
 router.post("/login", async (req, res) => {
   try {
-    const { email, password } = req.body;
-    if (!email || !password) {
-      if (!email) return res.status(400).json({ error: "Email is required" });
-      if (!password)
-        return res.status(400).json({ error: "Password is required" });
+    // Validate the incoming request body against the login schema
+    const validationResult = await loginSchema.safeParseAsync(req.body);
+
+    // If validation fails, return a 400 Bad Request response with error details
+    if (validationResult.error) {
+      return res.status(400).json({
+        errors: validationResult.error.issues.map((issue) => ({
+          field: issue.path[0],
+          message: issue.message,
+        })),
+      });
     }
+
+    // Extract email and password from the validated data
+    const { email, password } = validationResult.data;
 
     // check if user exists
-    const [existingUser] = await db
-      .select()
-      .from(usersTable)
-      .where(eq(usersTable.email, email))
-      .limit(1);
+    const existingUser = await getUserByEmail(email);
 
     if (!existingUser) {
-      res.status(400).json({ error: "User does not exist" });
+      return res.status(400).json({ error: "User does not exist" });
     }
-    //hash password using sha256 and salt
-    const salt = existingUser.salt;
-
     //
-    const { salt, hashPassword } = hashPasswordWithSalt(password);
+    const { password: hashPassword } = hashPasswordWithSalt(
+      password,
+      existingUser.salt,
+    );
 
     if (hashPassword !== existingUser.password) {
       return res.status(400).json({ error: "Invalid password" });
     }
 
+    // Generate a JWT token for the authenticated user
     const payload = {
       userId: existingUser.id,
       email: existingUser.email,
       firstName: existingUser.firstname,
     };
 
+    // Sign the JWT token with a secret key and set an expiration time
     const token = jwt.sign(payload, process.env.JWT_SECRET, {
       expiresIn: "1h",
     });
