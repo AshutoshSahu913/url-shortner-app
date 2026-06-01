@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { usersTable } from "../models/users.model.js";
 import { hashPasswordWithSalt } from "../utils/hash.js";
 import { getUserByEmail, createUser } from "../services/user.services.js";
+import { generateToken } from "../utils/token.js";
 import jwt from "jsonwebtoken";
 import {
   registerSchema,
@@ -36,7 +37,6 @@ router.post("/register", async (req, res) => {
     }
 
     const { firstname, lastname, email, password } = validationResult.data;
-      
 
     //check if user already exists
     const existingUser = await getUserByEmail(email);
@@ -106,15 +106,13 @@ router.post("/login", async (req, res) => {
 
     // Generate a JWT token for the authenticated user
     const payload = {
-      userId: existingUser.id,
+      id: existingUser.id,
       email: existingUser.email,
-      firstName: existingUser.firstname,
+      firstname: existingUser.firstname,
     };
 
-    // Sign the JWT token with a secret key and set an expiration time
-    const token = jwt.sign(payload, process.env.JWT_SECRET, {
-      expiresIn: "1h",
-    });
+    // Generate a JWT token using the createToken function from the token services
+    const token = await generateToken(payload);
 
     res.status(200).json({
       status: "success",
