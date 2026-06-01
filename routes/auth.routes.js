@@ -2,7 +2,7 @@ import express from "express";
 import { db } from "../db/index.js";
 import { eq } from "drizzle-orm";
 import { usersTable } from "../models/users.model.js";
-import { randomBytes, createHmac } from "crypto";
+import { hashPasswordWithSalt } from "../utils/hash.js";
 import jwt from "jsonwebtoken";
 import { registerSchema } from "../validation/request.validation.js";
 
@@ -46,12 +46,7 @@ router.post("/register", async (req, res) => {
       return res.status(400).json({ error: "User already exists" });
 
     //hash password
-    const salt = randomBytes(256).toString("hex");
-
-    //hash password using sha256 and salt
-    const hashPassword = createHmac("sha256", salt)
-      .update(password)
-      .digest("hex");
+    const { salt, hashPassword } = hashPasswordWithSalt(password);
 
     const [user] = await db
       .insert(usersTable)
@@ -102,9 +97,7 @@ router.post("/login", async (req, res) => {
     const salt = existingUser.salt;
 
     //
-    const hashPassword = createHmac("sha256", salt)
-      .update(password)
-      .digest("hex");
+    const { salt, hashPassword } = hashPasswordWithSalt(password);
 
     if (hashPassword !== existingUser.password) {
       return res.status(400).json({ error: "Invalid password" });
