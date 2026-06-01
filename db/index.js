@@ -1,8 +1,10 @@
-import 'dotenv/config';
+import "dotenv/config";
+import { drizzle } from "drizzle-orm/node-postgres";
+import pg from "pg";
 
-import { drizzle } from 'drizzle-orm/node-postgres';
+const pool = new pg.Pool({
+  connectionString: process.env.DATABASE_URL,
+});
 
-// Initialize the database connection using the connection string from the environment variable
-const db = drizzle(process.env.DATABASE_URL);
-
+export const db = drizzle(pool);
 export default db;
