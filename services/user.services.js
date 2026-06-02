@@ -1,6 +1,6 @@
 import express from "express";
 import { db } from "../db/index.js";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { usersTable } from "../models/users.model.js";
 import { urlsTable } from "../models/url.model.js";
 
@@ -70,5 +70,35 @@ export async function createShortUrl(url, code, userId) {
   } catch (error) {
     console.error("Error creating short URL:", error);
     throw new Error("Failed to create short URL");
+  }
+}
+
+export async function getUrlByCode(code) {
+  try {
+    const [url] = await db
+      .select({
+        id: urlsTable.id,
+        code: urlsTable.code,
+        targetUrl: urlsTable.targetUrl,
+      })
+      .from(urlsTable)
+      .where(eq(urlsTable.code, code));
+    return url;
+  } catch (error) {
+    console.error("Error fetching URL:", error);
+    throw new Error("Failed to fetch URL");
+  }
+}
+
+export async function getAllUrls(userId) {
+  try {
+    const urls = await db
+      .select()
+      .from(urlsTable)
+      .where(eq(urlsTable.userId, userId));
+    return urls;
+  } catch (error) {
+    console.error("Error fetching URLs:", error);
+    throw new Error("Failed to fetch URLs");
   }
 }

@@ -14,6 +14,7 @@ app.use(express.json());
 //auth routes
 app.use("/api/auth", authRoutes);
 app.use("/api/users", authMiddleware, userRoutes);
+
 app.use("/api/urls", authMiddleware, urlRoutes);
 
 app.get("/", (req, res) => {
