@@ -2,6 +2,7 @@ import express from "express";
 import { db } from "../db/index.js";
 import { eq } from "drizzle-orm";
 import { usersTable } from "../models/users.model.js";
+import { urlsTable } from "../models/url.model.js";
 
 export async function getUserByEmail(email) {
   try {
@@ -32,7 +33,7 @@ export async function createUser(firstname, lastname, email, password, salt) {
       .values({
         firstname: firstname,
         lastname: lastname,
-        email:email,
+        email: email,
         password: password,
         salt: salt,
       })
@@ -46,5 +47,28 @@ export async function createUser(firstname, lastname, email, password, salt) {
   } catch (error) {
     console.error("Error creating user:", error);
     throw new Error("Failed to create user");
+  }
+}
+
+export async function createShortUrl(url, code, userId) {
+  try {
+    // Check if the generated short code already exists in the database
+    const [result] = await db
+      .insert(urlsTable)
+      .values({
+        code: code,
+        targetUrl: url,
+        userId: userId,
+      })
+      .returning({
+        id: urlsTable.id,
+        code: urlsTable.code,
+        targetUrl: urlsTable.targetUrl,
+      });
+
+    return result;
+  } catch (error) {
+    console.error("Error creating short URL:", error);
+    throw new Error("Failed to create short URL");
   }
 }

@@ -32,7 +32,7 @@ export const authMiddleware = (req, res, next) => {
 };
 
 export const adminMiddleware = (req, res, next) => {
-  if (!req.user) {
+  if (!req.user || !req.user.id) {
     return res.status(401).json({ error: "Unauthorized Access" });
   }
   next();

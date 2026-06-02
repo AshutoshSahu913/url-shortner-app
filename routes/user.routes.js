@@ -4,10 +4,12 @@ import { eq } from "drizzle-orm";
 import { usersTable } from "../models/users.model.js";
 import { randomBytes, createHmac } from "crypto";
 import jwt from "jsonwebtoken";
+import { adminMiddleware } from "../middlewares/auth.middleware.js";
 
 const router = express.Router();
-router.get("/", async (req, res) => {
+router.get("/", adminMiddleware, async (req, res) => {
   console.log("Users API is available");
+  
   const users = await db
     .select({
       id: usersTable.id,
@@ -19,7 +21,7 @@ router.get("/", async (req, res) => {
     })
     .from(usersTable);
 
-  console.log("Users:", users);
+  console.log("Users:", users.length);
   res.status(200).json({
     status: "success",
     totalUsers: users.length,
